@@ -1,0 +1,24 @@
+{
+  "name": "devos-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-scripts": "5.0.1",
+    "axios": "^1.7.7",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "react-syntax-highlighter": "^15.5.0",
+    "zustand": "^4.5.5",
+    "lucide-react": "^0.447.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead"],
+    "development": ["last 1 chrome version"]
+  }
+}

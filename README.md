@@ -2,24 +2,118 @@
 
 ### A Local Multi-Agent AI Operating System
 
-TRIO-AgenticAI is a local-first AI operating system that combines conversational AI, voice interaction, intelligent agent routing, browser automation, system control, coding assistance, resume analysis, GitHub repository review, and interview preparation into a single platform.
+TRIO-AgenticAI is a local-first AI operating system that combines conversational AI, voice interaction, intelligent task routing, browser automation, system control, coding assistance, resume analysis, GitHub repository review, and interview preparation into a single platform.
 
-Built using FastAPI, React, Ollama, ChromaDB, and a multi-agent orchestration architecture.
+The system uses a multi-agent architecture where a central manager agent analyzes user requests and dynamically routes them to specialized agents. By leveraging local LLMs through Ollama, TRIO focuses on privacy, extensibility, and real-world AI automation.
 
 ---
 
 ## ✨ Features
 
-- 🤖 Intelligent Multi-Agent Routing
-- 🎤 Voice + Text Interaction
-- 🧠 Local LLM Support via Ollama
-- 🌐 Browser Automation
-- 💻 Code Generation & Debugging
-- 📄 Resume Analysis
-- 🎯 Interview Preparation
-- 🗂 Persistent Conversation History
-- 🔍 GitHub Repository Review
-- ⚡ Privacy-Focused Local Execution
+### 🤖 Multi-Agent Architecture
+
+TRIO automatically analyzes user requests and selects the most suitable agent.
+
+Available agents include:
+
+* Chat Agent
+* System Agent
+* Browser Agent
+* Coding Agent
+* Debug Agent
+* Resume Agent
+* Interview Agent
+* GitHub Agent
+
+---
+
+### 💬 Conversational AI
+
+* Natural language conversations
+* Context-aware responses
+* Multi-turn interaction support
+* Local LLM integration through Ollama
+
+---
+
+### 🎤 Voice Assistant
+
+* Voice activation interface
+* Speech-to-text processing
+* Text-to-speech responses
+* Voice and text commands supported simultaneously
+
+---
+
+### 🖥️ System Automation
+
+Perform desktop operations such as:
+
+* Open Chrome
+* Open VS Code
+* Open Calculator
+* Open Notepad
+* Open File Explorer
+
+---
+
+### 🌐 Browser Automation
+
+* Open websites
+* Search Google
+* Search YouTube
+* Find internships
+* LinkedIn searches
+* News searches
+
+---
+
+### 💻 Coding Assistant
+
+Generate:
+
+* FastAPI applications
+* React components
+* Full-stack projects
+* Python scripts
+* Algorithms
+* APIs
+
+---
+
+### 🐞 Debug Assistant
+
+* Analyze errors
+* Explain stack traces
+* Suggest fixes
+* Troubleshoot code
+
+---
+
+### 📄 Resume Assistant
+
+* ATS analysis
+* Resume feedback
+* Skill extraction
+* Career guidance
+
+---
+
+### 🎯 Interview Assistant
+
+* Mock interviews
+* Technical questions
+* Behavioral questions
+* Answer evaluation
+
+---
+
+### 🧠 Memory System
+
+* Conversation history
+* Persistent memory
+* Context retrieval
+* ChromaDB integration
 
 ---
 
@@ -27,9 +121,9 @@ Built using FastAPI, React, Ollama, ChromaDB, and a multi-agent orchestration ar
 
 ### Main Dashboard
 
-The central workspace where users can interact with TRIO through text commands, quick actions, and conversation history.
+The central workspace where users can interact with TRIO using text commands, quick actions, and conversation history.
 
-![Main Dashboard](home.png)
+![Main Dashboard](screenshots/Home.png)
 
 ---
 
@@ -37,37 +131,37 @@ The central workspace where users can interact with TRIO through text commands, 
 
 Voice-first interface with activation mode, speech recognition, and AI response generation.
 
-![Voice Mode](voice-mode.png)
+![Voice Interaction](screenshots/trio_Voice.png)
 
 ---
 
 ### Debug Assistant
 
-Example of the Debug Agent identifying issues in code and providing corrected solutions with explanations.
+Example of the Debug Agent identifying issues in code and generating corrected solutions with explanations.
 
-![Debug Agent](debug-agent.png)
+![Debug Assistant](screenshots/ChatLog.png)
 
 ---
 
-## 🏗 System Architecture
+## 🏗️ System Architecture
 
 ```text
-User Input (Voice/Text)
-          │
-          ▼
-    Manager Agent
-          │
-          ▼
-   Intent Detection
-          │
- ┌────────┼─────────┐
- │        │         │
- ▼        ▼         ▼
-Chat   Browser   Coding
-Agent   Agent     Agent
+User Input (Voice / Text)
+            │
+            ▼
+      Manager Agent
+            │
+            ▼
+     Intent Detection
+            │
+ ┌──────────┼──────────┐
+ │          │          │
+ ▼          ▼          ▼
+Chat     Browser    Coding
+Agent     Agent      Agent
  │
  ▼
-Ollama Local LLM
+Local LLM (Ollama)
  │
  ▼
 Response Generation
@@ -75,31 +169,46 @@ Response Generation
 
 ---
 
-## 🧩 Available Agents
+## 🧩 Agent Responsibilities
+
+### Manager Agent
+
+* Detects user intent
+* Selects appropriate agents
+* Coordinates execution
+* Combines responses
 
 ### Chat Agent
-Handles general conversation, explanations, and reasoning.
+
+Handles conversations, explanations, and general reasoning tasks.
 
 ### System Agent
-Controls desktop applications and approved system actions.
+
+Launches desktop applications and performs approved system actions.
 
 ### Browser Agent
-Performs searches, opens websites, finds internships, and handles YouTube interactions.
+
+Handles searches, websites, internships, YouTube interactions, and web automation.
 
 ### Coding Agent
-Generates FastAPI applications, React projects, APIs, scripts, and algorithms.
+
+Generates code, APIs, components, and software solutions.
 
 ### Debug Agent
-Analyzes errors, stack traces, and provides fixes.
+
+Analyzes errors and provides fixes.
 
 ### Resume Agent
-Performs ATS analysis, skill extraction, and career guidance.
+
+Evaluates resumes and provides career insights.
 
 ### Interview Agent
-Conducts mock interviews and evaluates responses.
+
+Conducts interview sessions and evaluates responses.
 
 ### GitHub Agent
-Reviews repositories and provides development insights.
+
+Reviews repositories and provides development suggestions.
 
 ---
 
@@ -107,32 +216,83 @@ Reviews repositories and provides development insights.
 
 ### Frontend
 
-- React
-- JavaScript
-- Axios
-- React Markdown
-- Zustand
+* React
+* JavaScript
+* Axios
+* React Markdown
+* Zustand
 
 ### Backend
 
-- FastAPI
-- Python
-- Uvicorn
-- Pydantic
+* FastAPI
+* Python
+* Uvicorn
+* Pydantic
 
-### AI & Automation
+### AI & ML
 
-- Ollama
-- Qwen Models
-- ChromaDB
-- Faster Whisper
-- Playwright
+* Ollama
+* Qwen Models
+* Faster-Whisper
+* ChromaDB
+
+### Automation
+
+* Playwright
+* Browser Automation
+* Desktop Automation
+
+### Storage
+
+* SQLite
+* ChromaDB
+
+---
+
+## 📁 Project Structure
+
+```text
+TRIO-AgenticAI
+│
+├── DevOS
+│   ├── backend
+│   │   ├── agents
+│   │   ├── api
+│   │   ├── core
+│   │   ├── memory
+│   │   ├── voice
+│   │   ├── main.py
+│   │   └── requirements.txt
+│   │
+│   └── frontend
+│       ├── src
+│       ├── public
+│       └── package.json
+│
+├── screenshots
+│   ├── Home.png
+│   ├── trio_Voice.png
+│   └── ChatLog.png
+│
+├── README.md
+└── .gitignore
+```
 
 ---
 
 ## 🚀 Getting Started
 
-### Backend
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/Larapraneeth/TRIO-AgenticAI.git
+
+cd TRIO-AgenticAI/DevOS
+```
+
+---
+
+### 2. Backend Setup
 
 ```bash
 cd backend
@@ -146,7 +306,15 @@ pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
 
-### Frontend
+Backend runs on:
+
+```text
+http://127.0.0.1:8000
+```
+
+---
+
+### 3. Frontend Setup
 
 ```bash
 cd frontend
@@ -156,17 +324,51 @@ npm install
 npm start
 ```
 
-### Ollama
+Frontend runs on:
+
+```text
+http://localhost:3000
+```
+
+---
+
+### 4. Ollama Setup
+
+Install Ollama and download a supported model:
 
 ```bash
 ollama pull qwen2.5:3b
 ```
 
+or
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+Verify installation:
+
+```bash
+ollama list
+```
+
+---
+
+## 🔮 Future Improvements
+
+* Agent permission system
+* Workflow automation
+* Mobile deployment
+* File management agent
+* Multi-model support
+* Enhanced browser automation
+* Improved long-term memory
+
 ---
 
 ## 🎯 Project Goal
 
-The objective of TRIO-AgenticAI is to explore agentic AI systems capable of intelligently routing tasks between specialized agents while operating primarily on local models for privacy, efficiency, and control.
+The goal of TRIO-AgenticAI is to explore agentic AI systems capable of intelligently routing tasks between specialized agents while operating primarily on local models for privacy, efficiency, and user control.
 
 ---
 
@@ -177,3 +379,9 @@ The objective of TRIO-AgenticAI is to explore agentic AI systems capable of inte
 B.Tech Computer Science & Engineering
 
 Indian Institute of Information Technology Surat
+
+---
+
+## 📜 License
+
+This project is intended for educational, research, and learning purposes.

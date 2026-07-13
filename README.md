@@ -4,7 +4,7 @@
 
 TRIO-AgenticAI is a local-first AI operating system that combines conversational AI, voice interaction, intelligent task routing, browser automation, system control, coding assistance, resume analysis, GitHub repository review, and interview preparation into a single platform.
 
-The system uses a multi-agent architecture where a central manager agent analyzes user requests and dynamically routes them to specialized agents. By leveraging local LLMs through Ollama, TRIO focuses on privacy, extensibility, and real-world AI automation.
+The system uses a multi-agent architecture where a central manager agent analyzes each request and routes it to the most suitable specialized agent. Routing is **deterministic for clear signals** (e.g. a GitHub URL, an internship search) and falls back to a local LLM only for ambiguous requests — so the system stays reliable even on a small local model. By running on local LLMs through Ollama and local speech models, TRIO prioritizes privacy, zero API cost, and full user control.
 
 ---
 
@@ -12,9 +12,9 @@ The system uses a multi-agent architecture where a central manager agent analyze
 
 ### 🤖 Multi-Agent Architecture
 
-TRIO automatically analyzes user requests and selects the most suitable agent.
+A central **Manager Agent** analyzes the request and selects the right agent. It uses fast keyword-based routing for obvious cases and the LLM only when the request is genuinely ambiguous.
 
-Available agents include:
+Available agents:
 
 * Chat Agent
 * System Agent
@@ -29,91 +29,68 @@ Available agents include:
 
 ### 💬 Conversational AI
 
-* Natural language conversations
-* Context-aware responses
-* Multi-turn interaction support
-* Local LLM integration through Ollama
+* Natural, context-aware, multi-turn conversations
+* Local LLM integration through Ollama (Qwen models)
 
 ---
 
 ### 🎤 Voice Assistant
 
-* Voice activation interface
-* Speech-to-text processing
-* Text-to-speech responses
-* Voice and text commands supported simultaneously
+Full two-way voice loop, running entirely on local models:
+
+* **Speech-to-text** via Faster-Whisper (offline)
+* **Text-to-speech** with a two-tier engine: edge-tts (high quality, when online) with an automatic offline **pyttsx3** fallback for restricted networks
+* Animated voice-activation overlay wired directly to the microphone
+* Voice and text commands supported interchangeably
 
 ---
 
 ### 🖥️ System Automation
 
-Perform desktop operations such as:
-
-* Open Chrome
-* Open VS Code
-* Open Calculator
-* Open Notepad
-* Open File Explorer
+Launch desktop applications such as Chrome, VS Code, Calculator, Notepad, and File Explorer.
 
 ---
 
 ### 🌐 Browser Automation
 
-* Open websites
-* Search Google
-* Search YouTube
-* Find internships
-* LinkedIn searches
-* News searches
+Live web automation using **Playwright + headless Chromium**:
+
+* Web search and internship/job search via DuckDuckGo's no-JS HTML endpoint (no login walls, no bot blocking)
+* Results returned as clean, clickable links with sponsored/ad results filtered out
+* Open websites and YouTube searches
+* Hard timeouts so a slow page can never hang the app
+
+> **Note:** The browser agent deliberately uses DuckDuckGo rather than scraping LinkedIn directly. LinkedIn aggressively blocks automation and requires login, which makes direct scraping unreliable and risky. DuckDuckGo returns the same job listings (LinkedIn, Indeed, Internshala, etc.) as stable, clickable links.
 
 ---
 
 ### 💻 Coding Assistant
 
-Generate:
-
-* FastAPI applications
-* React components
-* Full-stack projects
-* Python scripts
-* Algorithms
-* APIs
+Generate FastAPI apps, React components, full-stack scaffolds, Python scripts, algorithms, and APIs.
 
 ---
 
 ### 🐞 Debug Assistant
 
-* Analyze errors
-* Explain stack traces
-* Suggest fixes
-* Troubleshoot code
+Analyze errors, explain stack traces, suggest fixes, and troubleshoot code.
 
 ---
 
 ### 📄 Resume Assistant
 
-* ATS analysis
-* Resume feedback
-* Skill extraction
-* Career guidance
+ATS analysis, resume feedback, skill extraction, and career guidance.
 
 ---
 
 ### 🎯 Interview Assistant
 
-* Mock interviews
-* Technical questions
-* Behavioral questions
-* Answer evaluation
+Mock interviews, technical and behavioral questions, and answer evaluation.
 
 ---
 
 ### 🧠 Memory System
 
-* Conversation history
-* Persistent memory
-* Context retrieval
-* ChromaDB integration
+Conversation history, persistent memory, and context retrieval backed by ChromaDB and SQLite.
 
 ---
 
@@ -121,7 +98,7 @@ Generate:
 
 ### Main Dashboard
 
-The central workspace where users can interact with TRIO using text commands, quick actions, and conversation history.
+The central workspace for text commands, quick actions, and conversation history.
 
 ![Main Dashboard](screenshots/Home.png)
 
@@ -129,17 +106,17 @@ The central workspace where users can interact with TRIO using text commands, qu
 
 ### Voice Interaction Mode
 
-Voice-first interface with activation mode, speech recognition, and AI response generation.
+Voice-first interface with activation overlay, speech recognition, and spoken AI responses.
 
 ![Voice Interaction](screenshots/trio_Voice.png)
 
 ---
 
-### Debug Assistant
+### Chat & Agents
 
-Example of the Debug Agent identifying issues in code and generating corrected solutions with explanations.
+Example of an agent handling a request and returning a structured response.
 
-![Debug Assistant](screenshots/ChatLog.png)
+![Chat Log](screenshots/ChatLog.png)
 
 ---
 
@@ -152,100 +129,56 @@ User Input (Voice / Text)
       Manager Agent
             │
             ▼
-     Intent Detection
+   Keyword Routing ──── clear signal ──► Specialized Agent
             │
- ┌──────────┼──────────┐
- │          │          │
- ▼          ▼          ▼
-Chat     Browser    Coding
-Agent     Agent      Agent
- │
- ▼
-Local LLM (Ollama)
- │
- ▼
-Response Generation
+        ambiguous
+            │
+            ▼
+   LLM Routing (Ollama)
+            │
+ ┌──────────┼───────────┬───────────┐
+ ▼          ▼           ▼           ▼
+Chat     Browser     GitHub      Coding  ...
+Agent     Agent      Agent       Agent
+            │
+            ▼
+   Local LLM (Ollama)  /  Whisper (voice)  /  Playwright (web)
+            │
+            ▼
+     Response Generation
 ```
 
 ---
 
 ## 🧩 Agent Responsibilities
 
-### Manager Agent
-
-* Detects user intent
-* Selects appropriate agents
-* Coordinates execution
-* Combines responses
-
-### Chat Agent
-
-Handles conversations, explanations, and general reasoning tasks.
-
-### System Agent
-
-Launches desktop applications and performs approved system actions.
-
-### Browser Agent
-
-Handles searches, websites, internships, YouTube interactions, and web automation.
-
-### Coding Agent
-
-Generates code, APIs, components, and software solutions.
-
-### Debug Agent
-
-Analyzes errors and provides fixes.
-
-### Resume Agent
-
-Evaluates resumes and provides career insights.
-
-### Interview Agent
-
-Conducts interview sessions and evaluates responses.
-
-### GitHub Agent
-
-Reviews repositories and provides development suggestions.
+| Agent | Responsibility |
+|-------|----------------|
+| **Manager** | Detects intent, routes to agent(s), coordinates execution, merges responses |
+| **Chat** | Conversation, explanations, general reasoning |
+| **System** | Launches desktop applications |
+| **Browser** | Web/internship/YouTube search and site automation via Playwright |
+| **Coding** | Generates code, APIs, and components |
+| **Debug** | Analyzes errors and provides fixes |
+| **Resume** | Evaluates resumes and gives career insights |
+| **Interview** | Conducts interview sessions and evaluates responses |
+| **GitHub** | Clones and reviews repositories with a code-quality summary |
 
 ---
 
 ## ⚙️ Tech Stack
 
-### Frontend
+**Frontend:** React, JavaScript, Axios, React Markdown, Zustand
 
-* React
-* JavaScript
-* Axios
-* React Markdown
-* Zustand
+**Backend:** FastAPI, Python, Uvicorn, Pydantic
 
-### Backend
+**AI & ML:** Ollama, Qwen models, Faster-Whisper, ChromaDB
 
-* FastAPI
-* Python
-* Uvicorn
-* Pydantic
+**Voice:** Faster-Whisper (STT), edge-tts + pyttsx3 (TTS)
 
-### AI & ML
+**Automation:** Playwright (Chromium), desktop automation
 
-* Ollama
-* Qwen Models
-* Faster-Whisper
-* ChromaDB
-
-### Automation
-
-* Playwright
-* Browser Automation
-* Desktop Automation
-
-### Storage
-
-* SQLite
-* ChromaDB
+**Storage:** SQLite, ChromaDB
 
 ---
 
@@ -256,11 +189,11 @@ TRIO-AgenticAI
 │
 ├── DevOS
 │   ├── backend
-│   │   ├── agents
-│   │   ├── api
-│   │   ├── core
-│   │   ├── memory
-│   │   ├── voice
+│   │   ├── agents          # manager + specialized agents
+│   │   ├── api             # FastAPI routes
+│   │   ├── core            # config, LLM client
+│   │   ├── memory          # database, title generation
+│   │   ├── voice           # stt.py, tts.py
 │   │   ├── main.py
 │   │   └── requirements.txt
 │   │
@@ -270,10 +203,6 @@ TRIO-AgenticAI
 │       └── package.json
 │
 ├── screenshots
-│   ├── Home.png
-│   ├── trio_Voice.png
-│   └── ChatLog.png
-│
 ├── README.md
 └── .gitignore
 ```
@@ -282,106 +211,126 @@ TRIO-AgenticAI
 
 ## 🚀 Getting Started
 
-### 1. Clone Repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Larapraneeth/TRIO-AgenticAI.git
-
 cd TRIO-AgenticAI/DevOS
 ```
 
----
-
-### 2. Backend Setup
+### 2. Backend setup
 
 ```bash
 cd backend
-
 python -m venv venv
-
 venv\Scripts\activate
-
 pip install -r requirements.txt
-
-python -m uvicorn main:app --reload
+python -m playwright install chromium
+python main.py
 ```
 
-Backend runs on:
+> **Important:** Start the backend with `python main.py`, **not** `uvicorn main:app --reload`.
+> `main.py` sets the Windows **Proactor event loop policy** required by Playwright. The `--reload` worker runs on the Selector loop and will crash the browser agent with `NotImplementedError`.
 
-```text
-http://127.0.0.1:8000
-```
+Backend runs at `http://127.0.0.1:8000`.
 
----
-
-### 3. Frontend Setup
+### 3. Frontend setup
 
 ```bash
 cd frontend
-
 npm install
-
 npm start
 ```
 
-Frontend runs on:
+Frontend runs at `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+### 4. Ollama setup
 
----
-
-### 4. Ollama Setup
-
-Install Ollama and download a supported model:
+Install [Ollama](https://ollama.com), then pull a model:
 
 ```bash
-ollama pull qwen2.5:3b
+ollama pull qwen2.5:1.5b   # recommended for 8 GB RAM machines
+# or
+ollama pull qwen2.5:3b     # better quality, needs more free RAM
 ```
 
-or
+Set your choice in `backend/core/config.py`:
 
-```bash
-ollama pull qwen2.5:7b
+```python
+OLLAMA_MODEL: str = "qwen2.5:1.5b"
 ```
 
-Verify installation:
+Verify:
 
 ```bash
 ollama list
 ```
+
+> **Model choice matters.** On CPU-only machines with ~8 GB RAM, `qwen2.5:1.5b` loads reliably and responds quickly. `qwen2.5:3b` gives better answers but can be slow or fail to load when free RAM is low.
+
+---
+
+## ⚙️ Configuration
+
+Key settings in `backend/core/config.py`:
+
+| Setting | Purpose | Default |
+|---------|---------|---------|
+| `OLLAMA_MODEL` | Local LLM used by all agents | `qwen2.5:1.5b` |
+| `OLLAMA_KEEP_ALIVE` | How long the model stays loaded in RAM | `30s` |
+| `OLLAMA_NUM_CTX` | Context window (smaller = less RAM) | `2048` |
+| `WHISPER_MODEL` | Speech-to-text model size (`tiny`/`base`) | `base` |
+| `TTS_PROVIDER` | `edge` (online, high quality) or `pyttsx3` (offline) | `pyttsx3` |
+| `TTS_VOICE` | edge-tts voice | `en-US-AriaNeural` |
+
+Secrets (API keys, if you enable any hosted providers) go in `backend/.env`, which is git-ignored.
+
+---
+
+## 🩹 Troubleshooting
+
+**Backend crashes with `NotImplementedError` when the browser agent runs**
+You started with `uvicorn --reload`. Use `python main.py` instead (see setup note above).
+
+**Ollama: `failed to allocate CPU_REPACK buffer` / model won't load**
+Out of RAM. Free memory (close browser tabs, quit Docker), or switch `OLLAMA_MODEL` to `qwen2.5:1.5b`.
+
+**Voice transcription crashes with a NumPy error**
+Faster-Whisper needs NumPy < 2. Run `pip install "numpy<2"` inside the venv.
+
+**TTS produces no sound / edge-tts fails with a 403**
+Some networks block edge-tts. Set `TTS_PROVIDER = "pyttsx3"` in config to use the offline engine.
+
+**Chat request times out**
+The local model is too slow for the task on this hardware. Use `qwen2.5:1.5b`, and pre-warm the model with one message before demoing.
 
 ---
 
 ## 🔮 Future Improvements
 
 * Agent permission system
-* Workflow automation
-* Mobile deployment
+* Workflow automation and agent chaining
+* True voice-activity detection (auto-stop on silence)
 * File management agent
-* Multi-model support
-* Enhanced browser automation
-* Improved long-term memory
+* Optional hosted-model support for heavier tasks
+* Enhanced long-term memory
 
 ---
 
 ## 🎯 Project Goal
 
-The goal of TRIO-AgenticAI is to explore agentic AI systems capable of intelligently routing tasks between specialized agents while operating primarily on local models for privacy, efficiency, and user control.
+TRIO-AgenticAI explores agentic AI systems that intelligently route tasks between specialized agents while running primarily on local models — for privacy, efficiency, and user control.
 
 ---
 
 ## 👨‍💻 Author
 
 **Lara Praneeth Kondeti**
-
 B.Tech Computer Science & Engineering
-
-Indian Institute of Information Technology Surat
+Indian Institute of Information Technology, Surat
 
 ---
 
 ## 📜 License
 
-This project is intended for educational, research, and learning purposes.
+Intended for educational, research, and learning purposes.

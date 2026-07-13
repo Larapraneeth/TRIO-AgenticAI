@@ -4,7 +4,8 @@ import Header from './components/layout/Header';
 import ChatWindow from './components/chat/ChatWindow';
 import ChatInput from './components/chat/ChatInput';
 import TrioVoiceActivation from './components/voice/TrioVoiceActivation';
-import { sendMessage, speakText, getConversations } from './services/api';
+import { sendMessage, getConversations } from './services/api';
+import { useVoice } from './hooks/useVoice';
 import useStore from './store/useStore';
 import './index.css';
 
@@ -15,6 +16,11 @@ export default function App() {
     setConversations, addConversation,
     setThinkingSteps, clearThinking,
   } = useStore();
+
+  const {
+    isRecording, isTranscribing,
+    startRecording, stopRecording, speak,
+  } = useVoice();
 
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
 
@@ -81,7 +87,7 @@ export default function App() {
       });
 
       if (voiceEnabled && result.response) {
-        speakText(result.response.slice(0, 300)).catch(() => {});
+        speak(result.response.slice(0, 300));
       }
     } catch (err) {
       clearInterval(intervalRef.current);
@@ -96,7 +102,12 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [isLoading, voiceEnabled, activeConversationId, addMessage, setLoading, clearThinking, simulateThinking, addConversation, setActiveConversation, setConversations]);
+  }, [isLoading, voiceEnabled, activeConversationId, addMessage, setLoading, clearThinking, simulateThinking, addConversation, setActiveConversation, setConversations, speak]);
+
+  // Speech transcript comes back from the overlay -> send it as a message.
+  const handleTranscript = useCallback((text) => {
+    if (text && text.trim()) handleSend(text.trim());
+  }, [handleSend]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0d0d0d', position: 'relative' }}>
@@ -110,8 +121,11 @@ export default function App() {
 
       {showVoiceOverlay && (
         <TrioVoiceActivation
-          isRecording={false}
-          isTranscribing={false}
+          isRecording={isRecording}
+          isTranscribing={isTranscribing}
+          startRecording={startRecording}
+          stopRecording={stopRecording}
+          onTranscript={handleTranscript}
           onClose={handleVoiceClose}
         />
       )}

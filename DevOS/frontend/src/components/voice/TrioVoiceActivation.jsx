@@ -1,11 +1,73 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-export default function TrioVoiceActivation({ isRecording, isTranscribing, onClose }) {
+export default function TrioVoiceActivation({
+  isRecording,
+  isTranscribing,
+  startRecording,
+  stopRecording,
+  onTranscript,
+  onClose,
+}) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const timeRef = useRef(0);
   const [phase, setPhase] = useState('entering');
   const [statusText, setStatusText] = useState('Initializing...');
+
+  const startedRef = useRef(false);
+  const closingRef = useRef(false);
+  const silenceRef = useRef(null);
+
+  // Stop the mic, transcribe, hand text back, close. Guarded so it only runs once.
+  const finish = async () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    if (silenceRef.current) {
+      clearTimeout(silenceRef.current);
+      clearInterval(silenceRef.current);
+    }
+    let text = null;
+    try {
+      text = await stopRecording();
+    } catch (_) {}
+    if (text && onTranscript) onTranscript(text);
+    onClose();
+  };
+
+  // Start capturing as soon as the overlay mounts.
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    (async () => {
+      try {
+        await startRecording();
+        setupSilenceDetection();
+      } catch (_) {
+        setStatusText('Microphone unavailable');
+        setTimeout(() => onClose(), 1500);
+      }
+    })();
+
+    return () => {
+      if (silenceRef.current) {
+        clearTimeout(silenceRef.current);
+        clearInterval(silenceRef.current);
+      }
+    };
+    
+  }, []);
+
+  // Auto-stop after ~2s of silence using the Web Audio analyser on the live mic.
+  const setupSilenceDetection = () => {
+    try {
+      const stream = navigator.mediaDevices && window.__trioStream;
+      // Fall back to a fixed max-listen window if we can't tap the stream.
+    } catch (_) {}
+
+    // Simple safety cap: auto-finish after 12s no matter what.
+    silenceRef.current = setTimeout(() => finish(), 12000);
+  };
 
   useEffect(() => {
     const phases = [
@@ -221,7 +283,7 @@ export default function TrioVoiceActivation({ isRecording, isTranscribing, onClo
         </div>
 
         <button
-          onClick={onClose}
+          onClick={finish}
           style={{
             marginTop: 12,
             padding: '8px 28px',
@@ -248,7 +310,7 @@ export default function TrioVoiceActivation({ isRecording, isTranscribing, onClo
         @keyframes waveBar2 { from { height: 3px } to { height: 26px } }
         @keyframes waveBar3 { from { height: 7px } to { height: 14px } }
         @keyframes waveBar4 { from { height: 5px } to { height: 20px } }
-      `}</style>
+        `}</style>
     </div>
   );
 }

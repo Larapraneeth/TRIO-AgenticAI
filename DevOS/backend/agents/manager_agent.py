@@ -1,4 +1,5 @@
 import json
+import re
 from core.llm import generate_ollama, OllamaError
 from agents.chat_agent import ChatAgent
 from agents.system_agent import SystemAgent
@@ -34,6 +35,7 @@ Use multiple agents when the task genuinely needs them:
 - "open chrome and search AI news" → ["system", "browser"]
 For simple tasks use one agent only."""
 
+
 class ManagerAgent:
     def __init__(self):
         self.agents = {
@@ -47,43 +49,93 @@ class ManagerAgent:
             "interview": InterviewAgent(),
         }
 
+    def _keyword_route(self, message: str):
+        """Deterministic routing for unambiguous requests. Returns a single
+        agent name, or None if the request needs the LLM to decide.
+        Order matters: most specific signals first."""
+        m = message.lower()
+
+        # github: an explicit github URL or repo-review language
+        if "github.com" in m or re.search(r'\b(clone|repo|repository)\b', m):
+            return "github"
+
+        # browser: web search / jobs / sites. Checked before others because
+        # "find X on LinkedIn" is unambiguous even though it says nothing
+        # about browsing explicitly.
+        if re.search(r'\b(search|google|browse|internship|internships|jobs?|linkedin|youtube|news|website)\b', m):
+            return "browser"
+
+        # system: launching desktop apps
+        if re.search(r'\b(open|launch|close|start)\b', m) and \
+           re.search(r'\b(chrome|spotify|vscode|vs code|notepad|calculator|explorer|terminal|app)\b', m):
+            return "system"
+
+        # debug: error/stack-trace language
+        if re.search(r'\b(error|bug|traceback|stack trace|exception|fix this|not working|debug)\b', m):
+            return "debug"
+
+        # resume
+        if re.search(r'\b(resume|cv|ats|cover letter)\b', m):
+            return "resume"
+
+        # interview
+        if re.search(r'\b(mock interview|interview me|ask me .*question)\b', m):
+            return "interview"
+
+        # coding: explicit "build/write/generate code" language
+        if re.search(r'\b(build|write|generate|create)\b.*\b(code|api|app|script|function|component|program)\b', m):
+            return "coding"
+
+        return None  # ambiguous -> let the LLM decide
+
     async def route(self, user_message: str, history: list = []) -> dict:
         execution_steps = []
-
         execution_steps.append("Intent detected")
-        try:
-            routing_response = await generate_ollama(
-                prompt=f"User request: {user_message}",
-                system_prompt=ROUTER_PROMPT,
-                max_tokens=80
-            )
-            raw = routing_response.strip()
-            start = raw.find("{")
-            end = raw.rfind("}") + 1
-            route_data = json.loads(raw[start:end])
-        except OllamaError as e:
-            # Ollama itself is unreachable/misconfigured (e.g. wrong model name,
-            # server not running). Surface this clearly instead of crashing the
-            # whole request, and fall back to the chat agent so the user still
-            # gets a response explaining what's wrong.
-            execution_steps.append(f"Routing failed: {e}")
-            return {
-                "response": f"⚠️ Couldn't reach the local AI model: {e}",
-                "agents_used": [],
-                "agent_statuses": [],
-                "intent": user_message,
-                "execution_steps": execution_steps,
-            }
-        except Exception:
-            # Routing call succeeded but the JSON it returned was unparseable.
-            # Default to the chat agent rather than failing the request.
-            route_data = {"agents": ["chat"], "intent": user_message, "params": {}}
 
-        selected_agents = route_data.get("agents", ["chat"])
-        intent = route_data.get("intent", user_message)
-        params = route_data.get("params", {})
+        # 1) Try deterministic keyword routing first (fast, no model needed).
+        keyword_agent = self._keyword_route(user_message)
 
-        execution_steps.append(f"Routing to {', '.join(selected_agents)}")
+        if keyword_agent:
+            selected_agents = [keyword_agent]
+            intent = user_message
+            params = {}
+            execution_steps.append(f"Keyword-routed to {keyword_agent}")
+        else:
+            # 2) Ambiguous -> ask the model, but degrade gracefully.
+            try:
+                routing_response = await generate_ollama(
+                    prompt=f"User request: {user_message}",
+                    system_prompt=ROUTER_PROMPT,
+                    max_tokens=80
+                )
+                raw = routing_response.strip()
+                start = raw.find("{")
+                end = raw.rfind("}") + 1
+                route_data = json.loads(raw[start:end])
+                selected_agents = route_data.get("agents", ["chat"])
+                intent = route_data.get("intent", user_message)
+                params = route_data.get("params", {})
+                execution_steps.append(f"LLM-routed to {', '.join(selected_agents)}")
+            except OllamaError as e:
+                execution_steps.append(f"Routing failed: {e}")
+                return {
+                    "response": f"⚠️ Couldn't reach the local AI model: {e}",
+                    "agents_used": [],
+                    "agent_statuses": [],
+                    "intent": user_message,
+                    "execution_steps": execution_steps,
+                }
+            except Exception:
+                # Model returned junk -> safest default is chat, not a random agent.
+                selected_agents = ["chat"]
+                intent = user_message
+                params = {}
+                execution_steps.append("Routing unparseable — defaulting to chat")
+
+        # Validate agent names; drop anything unknown, fall back to chat if empty.
+        selected_agents = [a for a in selected_agents if a in self.agents]
+        if not selected_agents:
+            selected_agents = ["chat"]
 
         results = []
         agent_statuses = []
@@ -99,7 +151,8 @@ class ManagerAgent:
                     agent_statuses[-1]["status"] = "done"
                     execution_steps.append(f"{agent_name.capitalize()} agent completed")
                 except Exception as e:
-                    results.append({"agent": agent_name, "result": f"Error: {str(e)}"})
+                    msg = str(e) or e.__class__.__name__
+                    results.append({"agent": agent_name, "result": f"Error ({e.__class__.__name__}): {msg}"})
                     agent_statuses[-1]["status"] = "error"
                     execution_steps.append(f"{agent_name.capitalize()} agent failed")
 
@@ -118,11 +171,14 @@ class ManagerAgent:
         }
 
     def _merge_results(self, results: list, original_query: str) -> str:
+        if not results:
+            return "No agent produced a response."
         if len(results) == 1:
             return results[0]["result"]
         merged = ""
         for r in results:
             merged += f"\n\n{r['result']}"
         return merged.strip()
+
 
 manager_agent = ManagerAgent()

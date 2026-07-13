@@ -6,8 +6,10 @@ from voice.tts import tts
 
 router = APIRouter()
 
+
 class TTSRequest(BaseModel):
     text: str
+
 
 @router.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
@@ -17,17 +19,22 @@ async def transcribe(audio: UploadFile = File(...)):
         if not text:
             raise HTTPException(status_code=400, detail="Could not transcribe audio")
         return {"text": text}
+    except HTTPException:
+        raise
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/speak")
 async def speak(request: TTSRequest):
     try:
-        audio_bytes = tts.synthesize(request.text)
+        audio_bytes, media_type = await tts.synthesize(request.text)
         if not audio_bytes:
             raise HTTPException(status_code=503, detail="TTS synthesis failed")
-        return Response(content=audio_bytes, media_type="audio/wav")
+        return Response(content=audio_bytes, media_type=media_type)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

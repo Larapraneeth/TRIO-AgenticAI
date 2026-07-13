@@ -97,4 +97,5 @@ recordings/
 # Generated Files
 # =========================
 coverage/
-htmlcov/
+htmlcov/backend/.env
+.env

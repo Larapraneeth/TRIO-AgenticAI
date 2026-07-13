@@ -1,13 +1,17 @@
 import json
+import urllib.parse
 from core.llm import generate_ollama
 
 BROWSER_PROMPT = """Analyze this browser request and return ONLY JSON:
 {
-  "action": "open_url | search_google | search_internships | search_youtube",
+  "action": "open_url | search_web | search_internships | search_youtube",
   "query": "search term or URL",
   "url": "full URL if action is open_url"
 }
 No extra text, just JSON."""
+
+NAV_TIMEOUT = 20000  # ms — fail fast instead of hanging for minutes
+
 
 class BrowserAgent:
     async def execute(self, message: str, history: list = [], params: dict = {}) -> str:
@@ -21,65 +25,107 @@ class BrowserAgent:
             end = raw.rfind("}") + 1
             action_data = json.loads(raw[start:end])
         except Exception:
-            action_data = {"action": "search_google", "query": message, "url": ""}
+            action_data = {"action": "search_web", "query": message, "url": ""}
 
-        action = action_data.get("action", "search_google")
+        action = action_data.get("action", "search_web")
         query = action_data.get("query", message)
 
         try:
             from playwright.async_api import async_playwright
+        except ImportError:
+            return "Playwright not installed. Run: `python -m playwright install chromium`"
 
+        try:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=False)
-                page = await browser.new_page()
+                context = await browser.new_page()
+                context.set_default_timeout(NAV_TIMEOUT)
 
-                if action == "open_url":
-                    url = action_data.get("url", f"https://{query}")
-                    await page.goto(url)
-                    title = await page.title()
+                try:
+                    if action == "open_url":
+                        url = action_data.get("url") or f"https://{query}"
+                        await context.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+                        title = await context.title()
+                        return f"✅ Opened **[{title}]({url})**"
+
+                    elif action == "search_youtube":
+                        url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+                        await context.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+                        return f"✅ Opened **[YouTube search for '{query}']({url})**"
+
+                    else:
+                        # search_web AND search_internships both go through
+                        # DuckDuckGo's no-JS HTML endpoint: no login, no bot wall,
+                        # stable selectors, settles instantly.
+                        term = query
+                        if action == "search_internships":
+                            term = f"{query} internship jobs"
+
+                        url = f"https://html.duckduckgo.com/html/?q={term.replace(' ', '+')}"
+                        await context.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+
+                        try:
+                            await context.wait_for_selector(".result__title", timeout=8000)
+                        except Exception:
+                            return f"No results loaded for '{term}' (the search page may have blocked the request)."
+
+                        titles = await context.query_selector_all(".result__title")
+                        snippets = await context.query_selector_all(".result__snippet")
+
+                        results = []
+                        for i, t_el in enumerate(titles[:12]):
+                            title = (await t_el.inner_text()).strip()
+                            link_el = await t_el.query_selector("a")
+                            raw_href = await link_el.get_attribute("href") if link_el else ""
+
+                            if self._is_ad(raw_href, title):
+                                continue  # drop sponsored / ad-tracking results
+
+                            href = self._clean_ddg_url(raw_href)
+                            snippet = ""
+                            if i < len(snippets):
+                                snippet = (await snippets[i].inner_text()).strip()
+
+                            if title and href:
+                                line = f"**[{title}]({href})**"
+                                if snippet:
+                                    line += f"\n{snippet[:160]}"
+                                results.append(line)
+
+                            if len(results) >= 8:
+                                break
+
+                        if results:
+                            label = "internship results" if action == "search_internships" else "results"
+                            return f"**Found {len(results)} {label} for '{query}':**\n\n" + "\n\n".join(results)
+                        return f"No results found for '{query}'."
+
+                finally:
                     await browser.close()
-                    return f"✅ Opened **{title}** at {url}"
 
-                elif action == "search_internships":
-                    search_url = f"https://www.linkedin.com/jobs/search/?keywords={query.replace(' ', '+')}"
-                    await page.goto(search_url)
-                    await page.wait_for_load_state("networkidle")
-                    jobs = await page.query_selector_all(".job-search-card")
-                    results = []
-                    for job in jobs[:10]:
-                        title_el = await job.query_selector(".job-search-card__title")
-                        company_el = await job.query_selector(".job-search-card__subtitle")
-                        if title_el and company_el:
-                            t = await title_el.inner_text()
-                            c = await company_el.inner_text()
-                            results.append(f"- **{t.strip()}** at {c.strip()}")
-                    await browser.close()
-                    if results:
-                        return f"Found {len(results)} internships:\n" + "\n".join(results)
-                    return "No internships found. Try a different search term."
-
-                elif action == "search_youtube":
-                    search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
-                    await page.goto(search_url)
-                    await page.wait_for_load_state("networkidle")
-                    await browser.close()
-                    return f"✅ Searched YouTube for **{query}**"
-
-                else:
-                    search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
-                    await page.goto(search_url)
-                    await page.wait_for_load_state("networkidle")
-                    snippets = await page.query_selector_all(".VwiC3b")
-                    results = []
-                    for s in snippets[:5]:
-                        text = await s.inner_text()
-                        results.append(f"- {text.strip()}")
-                    await browser.close()
-                    if results:
-                        return f"**Google results for '{query}':**\n" + "\n".join(results)
-                    return f"✅ Searched Google for '{query}'"
-
-        except ImportError:
-            return f"Playwright not installed. Run: `playwright install chromium`. Would have searched for: **{query}**"
         except Exception as e:
-            return f"Browser action failed: {str(e)}"
+            msg = str(e) or repr(e) or e.__class__.__name__
+            return f"Browser action failed ({e.__class__.__name__}): {msg}"
+
+    @staticmethod
+    def _clean_ddg_url(href: str) -> str:
+        # DuckDuckGo wraps real links in /l/?uddg=<encoded-real-url>. Unwrap it.
+        if not href:
+            return ""
+        if "uddg=" in href:
+            try:
+                qs = urllib.parse.urlparse(href).query
+                params = urllib.parse.parse_qs(qs)
+                if "uddg" in params:
+                    return urllib.parse.unquote(params["uddg"][0])
+            except Exception:
+                pass
+        if href.startswith("//"):
+            return "https:" + href
+        return href
+
+    @staticmethod
+    def _is_ad(href: str, title: str) -> bool:
+        # Skip sponsored/ad redirects (the "Highest Paid Jobs" style spam).
+        blob = ((href or "") + " " + (title or "")).lower()
+        return "y.js" in blob or "ad_provider" in blob or "ad_domain" in blob
